@@ -1,0 +1,669 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>KML to LocalStops JSON Converter</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+
+        .container {
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.15);
+            max-width: 800px;
+            width: 100%;
+            overflow: hidden;
+            animation: slideUp 0.8s ease-out;
+        }
+
+        @keyframes slideUp {
+            from { opacity: 0; transform: translateY(30px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .header {
+            background: linear-gradient(135deg, #4caf50 0%, #45a049 100%);
+            color: white;
+            padding: 40px;
+            text-align: center;
+        }
+
+        .header h1 {
+            font-size: 2.8rem;
+            margin-bottom: 15px;
+            text-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+
+        .header p {
+            opacity: 0.95;
+            font-size: 1.2rem;
+            line-height: 1.4;
+        }
+
+        .main-content {
+            padding: 50px;
+        }
+
+        .upload-zone {
+            border: 3px dashed #e1e5e9;
+            border-radius: 20px;
+            padding: 60px;
+            text-align: center;
+            transition: all 0.3s ease;
+            background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 50%, #f8f9fa 100%);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .upload-zone:hover {
+            border-color: #4caf50;
+            background: linear-gradient(135deg, #e8f5e8 0%, #d4f6d4 50%, #e8f5e8 100%);
+            transform: translateY(-2px);
+            box-shadow: 0 10px 25px rgba(0,0,0,0.1);
+        }
+
+        .upload-zone::before {
+            content: '';
+            position: absolute;
+            top: -50%;
+            left: -50%;
+            width: 200%;
+            height: 200%;
+            background: radial-gradient(circle, rgba(76,175,80,0.1) 0%, transparent 70%);
+            animation: pulse 4s ease-in-out infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 0; transform: scale(0.8); }
+            50% { opacity: 1; transform: scale(1.1); }
+        }
+
+        .upload-content {
+            position: relative;
+            z-index: 1;
+        }
+
+        .upload-icon {
+            font-size: 4rem;
+            margin-bottom: 20px;
+            color: #4caf50;
+        }
+
+        .file-input {
+            display: none;
+        }
+
+        .upload-btn {
+            background: linear-gradient(135deg, #4caf50 0%, #45a049 100%);
+            color: white;
+            border: none;
+            padding: 20px 40px;
+            border-radius: 50px;
+            font-size: 1.3rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 15px rgba(76,175,80,0.3);
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .upload-btn:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 8px 25px rgba(76,175,80,0.4);
+        }
+
+        .upload-btn:active {
+            transform: translateY(-1px);
+        }
+
+        .instructions {
+            margin-top: 30px;
+            padding: 25px;
+            background: #e3f2fd;
+            border-radius: 15px;
+            border-left: 4px solid #2196f3;
+        }
+
+        .instructions h3 {
+            color: #1976d2;
+            margin-bottom: 15px;
+            font-size: 1.3rem;
+        }
+
+        .instructions ul {
+            color: #424242;
+            line-height: 1.6;
+            padding-left: 20px;
+        }
+
+        .instructions li {
+            margin-bottom: 8px;
+        }
+
+        .processing {
+            text-align: center;
+            padding: 40px;
+            display: none;
+        }
+
+        .spinner {
+            width: 50px;
+            height: 50px;
+            border: 4px solid #e1e5e9;
+            border-top: 4px solid #4caf50;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 20px;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .result-section {
+            display: none;
+            padding: 30px;
+            background: linear-gradient(135deg, #e8f5e8 0%, #c8e6c8 100%);
+            margin: 30px 0;
+            border-radius: 15px;
+            text-align: center;
+        }
+
+        .result-stats {
+            display: flex;
+            justify-content: center;
+            gap: 30px;
+            margin: 25px 0;
+            flex-wrap: wrap;
+        }
+
+        .stat-box {
+            background: white;
+            padding: 20px;
+            border-radius: 12px;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+            min-width: 120px;
+        }
+
+        .stat-number {
+            font-size: 2.5rem;
+            font-weight: bold;
+            color: #4caf50;
+        }
+
+        .stat-label {
+            color: #666;
+            margin-top: 5px;
+            font-size: 0.9rem;
+        }
+
+        .download-btn {
+            background: linear-gradient(135deg, #2196f3 0%, #1976d2 100%);
+            color: white;
+            border: none;
+            padding: 15px 35px;
+            border-radius: 25px;
+            font-size: 1.1rem;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            margin: 10px;
+        }
+
+        .download-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(33,150,243,0.3);
+        }
+
+        .preview {
+            background: #f8f9fa;
+            border-radius: 10px;
+            padding: 20px;
+            margin: 20px 0;
+            text-align: left;
+        }
+
+        .preview-code {
+            font-family: 'Monaco', 'Menlo', monospace;
+            font-size: 0.9rem;
+            background: #2c3e50;
+            color: #ecf0f1;
+            padding: 15px;
+            border-radius: 8px;
+            overflow-x: auto;
+            white-space: pre-wrap;
+            max-height: 300px;
+            overflow-y: auto;
+        }
+
+        .error-message {
+            background: #ffebee;
+            color: #c62828;
+            padding: 20px;
+            border-radius: 10px;
+            margin: 20px 0;
+            border-left: 4px solid #f44336;
+            display: none;
+        }
+
+        .feature-list {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 20px;
+            margin: 30px 0;
+        }
+
+        .feature-item {
+            text-align: center;
+            padding: 20px;
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.05);
+        }
+
+        .feature-icon {
+            font-size: 2.5rem;
+            margin-bottom: 10px;
+        }
+
+        @media (max-width: 768px) {
+            .header h1 { font-size: 2.2rem; }
+            .main-content { padding: 30px; }
+            .upload-zone { padding: 40px 20px; }
+            .result-stats { flex-direction: column; align-items: center; }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🌍 KML → LocalStops</h1>
+            <p>Convert your KML files to LocalStops JSON format<br>Clean descriptions and ready-to-use output</p>
+        </div>
+        
+        <div class="main-content">
+            <div class="upload-zone" onclick="document.getElementById('kmlInput').click()">
+                <div class="upload-content">
+                    <div class="upload-icon">📁</div>
+                    <h2 style="margin-bottom: 15px; color: #2c3e50;">Drop your KML file here</h2>
+                    <p style="color: #666; margin-bottom: 25px;">Supports Google Earth, Google Maps, and standard KML files</p>
+                    <button class="upload-btn">
+                        🌍 Select KML File
+                    </button>
+                </div>
+                <input type="file" id="kmlInput" class="file-input" accept=".kml,.kmz">
+            </div>
+
+            <div class="feature-list">
+                <div class="feature-item">
+                    <div class="feature-icon">🧹</div>
+                    <h4>Auto-Clean</h4>
+                    <p>Removes quotes, HTML tags, and formatting issues</p>
+                </div>
+                <div class="feature-item">
+                    <div class="feature-icon">🔗</div>
+                    <h4>Extract URLs</h4>
+                    <p>Automatically finds website links in descriptions</p>
+                </div>
+                <div class="feature-item">
+                    <div class="feature-icon">📱</div>
+                    <h4>App Ready</h4>
+                    <p>Perfect JSON format for your LocalStops app</p>
+                </div>
+            </div>
+
+            <div class="instructions">
+                <h3>📋 Supported KML Sources</h3>
+                <ul>
+                    <li><strong>Google Earth:</strong> Saved places and custom placemarks</li>
+                    <li><strong>Google Maps:</strong> Exported saved lists and custom maps</li>
+                    <li><strong>GPS Devices:</strong> Waypoints and points of interest</li>
+                    <li><strong>Travel Apps:</strong> Exported location collections</li>
+                </ul>
+            </div>
+
+            <div class="processing" id="processing">
+                <div class="spinner"></div>
+                <h3>Converting your KML file...</h3>
+                <p>Extracting locations and cleaning descriptions</p>
+            </div>
+
+            <div class="error-message" id="errorMessage"></div>
+
+            <div class="result-section" id="resultSection">
+                <h2>✅ Conversion Complete!</h2>
+                
+                <div class="result-stats">
+                    <div class="stat-box">
+                        <div class="stat-number" id="totalSites">0</div>
+                        <div class="stat-label">Sites Converted</div>
+                    </div>
+                    <div class="stat-box">
+                        <div class="stat-number" id="sitesWithUrls">0</div>
+                        <div class="stat-label">URLs Found</div>
+                    </div>
+                    <div class="stat-box">
+                        <div class="stat-number" id="sitesWithDescriptions">0</div>
+                        <div class="stat-label">With Descriptions</div>
+                    </div>
+                </div>
+
+                <div style="margin: 30px 0;">
+                    <button class="download-btn" onclick="downloadJSON()">
+                        💾 Download LocalStops JSON
+                    </button>
+                    <button class="download-btn" onclick="showPreview()">
+                        👁️ Preview JSON
+                    </button>
+                </div>
+
+                <div class="preview" id="preview" style="display: none;">
+                    <h4 style="margin-bottom: 15px;">JSON Preview:</h4>
+                    <div class="preview-code" id="previewCode"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let convertedData = [];
+
+        document.getElementById('kmlInput').addEventListener('change', handleKMLUpload);
+
+        function handleKMLUpload(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+
+            // Show processing animation
+            document.getElementById('processing').style.display = 'block';
+            document.getElementById('errorMessage').style.display = 'none';
+            document.getElementById('resultSection').style.display = 'none';
+
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                try {
+                    const kmlContent = e.target.result;
+                    convertedData = parseKMLToLocalStopsJSON(kmlContent);
+                    showResults();
+                } catch (error) {
+                    showError('Error converting KML: ' + error.message);
+                }
+            };
+            reader.readAsText(file);
+        }
+
+        function parseKMLToLocalStopsJSON(kmlContent) {
+            const parser = new DOMParser();
+            const kmlDoc = parser.parseFromString(kmlContent, 'text/xml');
+            
+            // Check for XML parsing errors
+            const parserError = kmlDoc.querySelector('parsererror');
+            if (parserError) {
+                throw new Error('Invalid KML file format');
+            }
+            
+            const placemarks = kmlDoc.querySelectorAll('Placemark');
+            
+            if (placemarks.length === 0) {
+                throw new Error('No placemarks found in KML file');
+            }
+            
+            const sites = [];
+            
+            placemarks.forEach((placemark, index) => {
+                try {
+                    const site = extractSiteFromPlacemark(placemark);
+                    if (site) {
+                        sites.push(site);
+                    }
+                } catch (error) {
+                    console.warn(`Error processing placemark ${index + 1}:`, error);
+                }
+            });
+            
+            if (sites.length === 0) {
+                throw new Error('No valid sites could be extracted from the KML file');
+            }
+            
+            return sites;
+        }
+
+        function extractSiteFromPlacemark(placemark) {
+            // Extract name
+            const nameElement = placemark.querySelector('name');
+            let name = nameElement ? nameElement.textContent.trim() : 'Unnamed Location';
+            
+            // Clean name of any unwanted characters
+            name = name.replace(/["""'']/g, '').trim();
+            
+            // Extract coordinates - handle different KML coordinate formats
+            let lat = null, lon = null;
+            
+            // Try Point coordinates first
+            const pointCoords = placemark.querySelector('Point coordinates');
+            if (pointCoords) {
+                const coords = parseCoordinates(pointCoords.textContent);
+                if (coords) {
+                    lat = coords.lat;
+                    lon = coords.lon;
+                }
+            }
+            
+            // If no Point, try any coordinates element
+            if (!lat || !lon) {
+                const anyCoords = placemark.querySelector('coordinates');
+                if (anyCoords) {
+                    const coords = parseCoordinates(anyCoords.textContent);
+                    if (coords) {
+                        lat = coords.lat;
+                        lon = coords.lon;
+                    }
+                }
+            }
+            
+            if (!lat || !lon) {
+                console.warn('No valid coordinates found for:', name);
+                return null;
+            }
+            
+            // Extract and clean description
+            const descriptionElement = placemark.querySelector('description');
+            let description = '';
+            
+            if (descriptionElement) {
+                description = cleanDescription(descriptionElement.textContent);
+            }
+            
+            // Try to extract URL from description
+            let url = extractURLFromText(description);
+            
+            // Check ExtendedData for additional info
+            let additionalInfo = null;
+            const extendedData = placemark.querySelector('ExtendedData');
+            
+            if (extendedData) {
+                const dataElements = extendedData.querySelectorAll('Data');
+                dataElements.forEach(data => {
+                    const key = data.getAttribute('name');
+                    const valueElement = data.querySelector('value');
+                    if (key && valueElement) {
+                        const value = valueElement.textContent.trim();
+                        
+                        // Look for common URL fields
+                        if (key.toLowerCase().includes('url') || key.toLowerCase().includes('website') || key.toLowerCase().includes('link')) {
+                            if (isValidURL(value)) {
+                                url = value;
+                            }
+                        }
+                        
+                        // Look for additional info fields
+                        if (key.toLowerCase().includes('info') || key.toLowerCase().includes('hours') || key.toLowerCase().includes('phone')) {
+                            additionalInfo = value;
+                        }
+                    }
+                });
+            }
+            
+            // Create LocalStops compatible object - Paris.swift exemplar format
+            const site = {
+                name: name,
+                lat: lat,
+                lon: lon,
+                imageURL: null,
+                description: description || "",
+                info: additionalInfo || null,
+                categories: null,
+                url: url || null
+            };
+            
+            // Keep all fields present - use null for missing data, empty string for empty descriptions
+            return site;
+        }
+
+        function parseCoordinates(coordText) {
+            if (!coordText) return null;
+            
+            // Clean up coordinate text
+            const cleaned = coordText.replace(/\s+/g, ' ').trim();
+            
+            // Handle different coordinate formats
+            // Format: "longitude,latitude,altitude" or "longitude,latitude"
+            const coords = cleaned.split(',');
+            
+            if (coords.length >= 2) {
+                const lon = parseFloat(coords[0].trim());
+                const lat = parseFloat(coords[1].trim());
+                
+                if (!isNaN(lat) && !isNaN(lon)) {
+                    // Validate coordinate ranges
+                    if (lat >= -90 && lat <= 90 && lon >= -180 && lon <= 180) {
+                        return { lat, lon };
+                    }
+                }
+            }
+            
+            return null;
+        }
+
+        function cleanDescription(description) {
+            if (!description) return '';
+            
+            return description
+                .replace(/["""'']/g, '') // Remove all quote variations
+                .replace(/<[^>]*>/g, '')  // Remove HTML tags
+                .replace(/&nbsp;/g, ' ')  // Convert HTML entities
+                .replace(/&amp;/g, '&')
+                .replace(/&lt;/g, '<')
+                .replace(/&gt;/g, '>')
+                .replace(/&quot;/g, '')
+                .replace(/&#39;/g, "'")
+                .replace(/\s+/g, ' ')     // Normalize whitespace
+                .replace(/\n\s*\n/g, '\n') // Remove extra newlines
+                .trim();
+        }
+
+        function extractURLFromText(text) {
+            if (!text) return null;
+            
+            const urlPattern = /https?:\/\/[^\s<>"'\[\]]+/gi;
+            const matches = text.match(urlPattern);
+            
+            if (matches && matches.length > 0) {
+                // Return the first valid URL found
+                for (const url of matches) {
+                    if (isValidURL(url)) {
+                        return url;
+                    }
+                }
+            }
+            
+            return null;
+        }
+
+        function isValidURL(string) {
+            try {
+                const url = new URL(string);
+                return url.protocol === 'http:' || url.protocol === 'https:';
+            } catch (_) {
+                return false;
+            }
+        }
+
+        function showResults() {
+            document.getElementById('processing').style.display = 'none';
+            document.getElementById('resultSection').style.display = 'block';
+            
+            // Update statistics
+            document.getElementById('totalSites').textContent = convertedData.length;
+            document.getElementById('sitesWithUrls').textContent = 
+                convertedData.filter(site => site.url).length;
+            document.getElementById('sitesWithDescriptions').textContent = 
+                convertedData.filter(site => site.description && site.description.length > 0).length;
+        }
+
+        function showError(message) {
+            document.getElementById('processing').style.display = 'none';
+            const errorDiv = document.getElementById('errorMessage');
+            errorDiv.textContent = message;
+            errorDiv.style.display = 'block';
+        }
+
+        function downloadJSON() {
+            const jsonString = JSON.stringify(convertedData, null, 2);
+            const blob = new Blob([jsonString], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `localstops_sites_${new Date().toISOString().split('T')[0]}.json`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+        }
+
+        function showPreview() {
+            const preview = document.getElementById('preview');
+            const previewCode = document.getElementById('previewCode');
+            
+            if (preview.style.display === 'none' || !preview.style.display) {
+                // Show first 3 sites as preview
+                const previewData = convertedData.slice(0, 3);
+                previewCode.textContent = JSON.stringify(previewData, null, 2);
+                preview.style.display = 'block';
+            } else {
+                preview.style.display = 'none';
+            }
+        }
+
+        // Prevent default drag behaviors
+        document.addEventListener('dragover', e => e.preventDefault());
+        document.addEventListener('drop', handleDrop);
+
+        function handleDrop(e) {
+            e.preventDefault();
+            const files = e.dataTransfer.files;
+            if (files.length > 0) {
+                document.getElementById('kmlInput').files = files;
+                handleKMLUpload({ target: { files } });
+            }
+        }
+    </script>
+</body>
+</html>
