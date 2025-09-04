@@ -1,0 +1,617 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>LocalStops JSON Description Editor</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 900px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.1);
+            overflow: hidden;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #FF6B35 0%, #F7931E 100%);
+            color: white;
+            padding: 40px;
+            text-align: center;
+        }
+
+        .header h1 {
+            font-size: 2.5rem;
+            margin-bottom: 10px;
+        }
+
+        .header p {
+            opacity: 0.9;
+            font-size: 1.1rem;
+        }
+
+        .main-content {
+            padding: 40px;
+        }
+
+        .step {
+            background: #f8f9fa;
+            border-radius: 15px;
+            padding: 30px;
+            margin-bottom: 30px;
+            border-left: 5px solid #FF6B35;
+        }
+
+        .step-number {
+            background: #FF6B35;
+            color: white;
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            margin-right: 15px;
+            font-size: 1.2rem;
+        }
+
+        .step-title {
+            display: inline-block;
+            font-size: 1.3rem;
+            font-weight: 600;
+            color: #2c3e50;
+            margin-bottom: 15px;
+        }
+
+        .upload-zone {
+            border: 2px dashed #dee2e6;
+            border-radius: 10px;
+            padding: 30px;
+            text-align: center;
+            margin: 20px 0;
+            transition: all 0.3s ease;
+            background: white;
+        }
+
+        .upload-zone:hover {
+            border-color: #FF6B35;
+            background: #fff8f6;
+        }
+
+        .upload-btn {
+            background: linear-gradient(135deg, #FF6B35 0%, #F7931E 100%);
+            color: white;
+            border: none;
+            padding: 12px 25px;
+            border-radius: 25px;
+            font-size: 1rem;
+            cursor: pointer;
+            transition: transform 0.2s ease;
+            margin: 10px;
+        }
+
+        .upload-btn:hover {
+            transform: translateY(-2px);
+        }
+
+        .file-input {
+            display: none;
+        }
+
+        .textarea-container {
+            margin: 20px 0;
+        }
+
+        .json-textarea {
+            width: 100%;
+            height: 150px;
+            border: 2px solid #dee2e6;
+            border-radius: 10px;
+            padding: 15px;
+            font-family: 'Monaco', 'Menlo', monospace;
+            font-size: 0.9rem;
+            resize: vertical;
+        }
+
+        .json-textarea:focus {
+            border-color: #FF6B35;
+            outline: none;
+        }
+
+        .result-section {
+            display: none;
+            background: #e8f5e8;
+            border-radius: 15px;
+            padding: 30px;
+            margin: 20px 0;
+        }
+
+        .stats {
+            display: flex;
+            justify-content: center;
+            gap: 30px;
+            margin: 20px 0;
+            flex-wrap: wrap;
+        }
+
+        .stat-item {
+            text-align: center;
+            padding: 15px;
+            background: white;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+            min-width: 120px;
+        }
+
+        .stat-number {
+            font-size: 2rem;
+            font-weight: bold;
+            color: #FF6B35;
+        }
+
+        .stat-label {
+            color: #6c757d;
+            font-size: 0.9rem;
+        }
+
+        .download-btn {
+            background: linear-gradient(135deg, #28a745 0%, #20c997 100%);
+            color: white;
+            border: none;
+            padding: 15px 30px;
+            border-radius: 25px;
+            font-size: 1.1rem;
+            cursor: pointer;
+            transition: transform 0.2s ease;
+            margin: 10px;
+        }
+
+        .download-btn:hover {
+            transform: translateY(-2px);
+        }
+
+        .preview {
+            background: #f8f9fa;
+            border-radius: 10px;
+            padding: 20px;
+            margin: 20px 0;
+            max-height: 400px;
+            overflow-y: auto;
+        }
+
+        .preview-content {
+            font-family: 'Monaco', 'Menlo', monospace;
+            font-size: 0.9rem;
+            line-height: 1.4;
+            white-space: pre-wrap;
+        }
+
+        .success-message {
+            background: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+            border-radius: 8px;
+            padding: 15px;
+            margin: 15px 0;
+            display: none;
+        }
+
+        .error-message {
+            background: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+            border-radius: 8px;
+            padding: 15px;
+            margin: 15px 0;
+            display: none;
+        }
+
+        .workflow-info {
+            background: #e3f2fd;
+            border-radius: 10px;
+            padding: 20px;
+            margin: 20px 0;
+            border-left: 4px solid #2196f3;
+        }
+
+        .workflow-info h4 {
+            color: #1976d2;
+            margin-bottom: 10px;
+        }
+
+        .workflow-info ul {
+            color: #424242;
+            line-height: 1.6;
+            padding-left: 20px;
+        }
+
+        .toggle-btn {
+            background: #6c757d;
+            color: white;
+            border: none;
+            padding: 8px 15px;
+            border-radius: 20px;
+            font-size: 0.9rem;
+            cursor: pointer;
+            margin: 10px 0;
+        }
+
+        .hidden {
+            display: none;
+        }
+
+        @media (max-width: 768px) {
+            .header h1 {
+                font-size: 2rem;
+            }
+            
+            .main-content {
+                padding: 25px;
+            }
+            
+            .stats {
+                flex-direction: column;
+                align-items: center;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>📝 JSON Description Editor</h1>
+            <p>Extract descriptions for easy editing, then merge changes back</p>
+        </div>
+        
+        <div class="main-content">
+            <!-- STEP 1: Extract Descriptions -->
+            <div class="step">
+                <div>
+                    <span class="step-number">1</span>
+                    <span class="step-title">Extract Descriptions</span>
+                </div>
+                <p style="margin-bottom: 20px;">Upload your JSON file to extract site names and descriptions for editing</p>
+                
+                <div class="upload-zone" onclick="document.getElementById('jsonInput').click()">
+                    <div style="font-size: 2rem; margin-bottom: 10px;">📁</div>
+                    <p><strong>Click to upload JSON file</strong></p>
+                    <input type="file" id="jsonInput" class="file-input" accept=".json">
+                </div>
+                
+                <button class="toggle-btn" onclick="toggleTextarea()">Or paste JSON text</button>
+                
+                <div class="textarea-container hidden" id="textareaContainer">
+                    <textarea class="json-textarea" id="jsonTextarea" placeholder="Paste your JSON data here..."></textarea>
+                    <button class="upload-btn" onclick="parseTextarea()">Extract Descriptions</button>
+                </div>
+
+                <div class="success-message" id="successMessage1"></div>
+                <div class="error-message" id="errorMessage1"></div>
+
+                <div class="result-section" id="extractResult">
+                    <h3>✅ Descriptions Extracted!</h3>
+                    <div class="stats">
+                        <div class="stat-item">
+                            <div class="stat-number" id="totalSites">0</div>
+                            <div class="stat-label">Sites Found</div>
+                        </div>
+                        <div class="stat-item">
+                            <div class="stat-number" id="sitesWithDescriptions">0</div>
+                            <div class="stat-label">With Descriptions</div>
+                        </div>
+                    </div>
+                    <div style="text-align: center;">
+                        <button class="download-btn" onclick="downloadDescriptions()">
+                            💾 Download for Editing
+                        </button>
+                        <button class="toggle-btn" onclick="togglePreview('extractPreview')">👁️ Preview</button>
+                    </div>
+                    <div class="preview hidden" id="extractPreview">
+                        <h4>Preview of extracted descriptions:</h4>
+                        <div class="preview-content" id="extractPreviewContent"></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Workflow Info -->
+            <div class="workflow-info">
+                <h4>📋 Editing Workflow</h4>
+                <ul>
+                    <li><strong>Download the file</strong> from Step 1 (tab-separated format)</li>
+                    <li><strong>Edit descriptions</strong> in Google Docs, MS Word, or GitHub</li>
+                    <li><strong>Keep the site names unchanged</strong> - only edit the descriptions</li>
+                    <li><strong>Save and upload</strong> your edited file in Step 2</li>
+                </ul>
+            </div>
+
+            <!-- STEP 2: Merge Changes -->
+            <div class="step">
+                <div>
+                    <span class="step-number">2</span>
+                    <span class="step-title">Merge Edited Descriptions</span>
+                </div>
+                <p style="margin-bottom: 20px;">Upload your edited descriptions file to merge changes back into the complete JSON</p>
+                
+                <div class="upload-zone" onclick="document.getElementById('editedInput').click()">
+                    <div style="font-size: 2rem; margin-bottom: 10px;">📄</div>
+                    <p><strong>Click to upload edited CSV file</strong></p>
+                    <input type="file" id="editedInput" class="file-input" accept=".txt,.tsv,.csv">
+                </div>
+
+                <div class="success-message" id="successMessage2"></div>
+                <div class="error-message" id="errorMessage2"></div>
+
+                <div class="result-section" id="mergeResult">
+                    <h3>✅ Descriptions Merged!</h3>
+                    <div class="stats">
+                        <div class="stat-item">
+                            <div class="stat-number" id="updatedSites">0</div>
+                            <div class="stat-label">Sites Updated</div>
+                        </div>
+                        <div class="stat-item">
+                            <div class="stat-number" id="unchangedSites">0</div>
+                            <div class="stat-label">Unchanged</div>
+                        </div>
+                    </div>
+                    <div style="text-align: center;">
+                        <button class="download-btn" onclick="downloadUpdatedJSON()">
+                            💾 Download Updated JSON
+                        </button>
+                        <button class="toggle-btn" onclick="togglePreview('mergePreview')">👁️ Preview Changes</button>
+                    </div>
+                    <div class="preview hidden" id="mergePreview">
+                        <h4>Updated JSON preview:</h4>
+                        <div class="preview-content" id="mergePreviewContent"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let originalJSON = [];
+        let extractedDescriptions = [];
+        let updatedJSON = [];
+
+        // Step 1: Extract descriptions from JSON
+        document.getElementById('jsonInput').addEventListener('change', function(e) {
+            const file = e.target.files[0];
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    try {
+                        const jsonData = JSON.parse(e.target.result);
+                        extractDescriptions(jsonData);
+                    } catch (error) {
+                        showError('errorMessage1', 'Invalid JSON file. Please check the format.');
+                    }
+                };
+                reader.readAsText(file);
+            }
+        });
+
+        function toggleTextarea() {
+            const container = document.getElementById('textareaContainer');
+            container.classList.toggle('hidden');
+        }
+
+        function parseTextarea() {
+            const textarea = document.getElementById('jsonTextarea');
+            try {
+                const jsonData = JSON.parse(textarea.value);
+                extractDescriptions(jsonData);
+            } catch (error) {
+                showError('errorMessage1', 'Invalid JSON format. Please check your syntax.');
+            }
+        }
+
+        function extractDescriptions(jsonData) {
+            if (!Array.isArray(jsonData)) {
+                showError('errorMessage1', 'JSON must be an array of sites.');
+                return;
+            }
+
+            originalJSON = jsonData;
+            extractedDescriptions = [];
+
+            jsonData.forEach(site => {
+                extractedDescriptions.push({
+                    name: site.name || 'Unnamed Site',
+                    description: site.description || ''
+                });
+            });
+
+            showExtractResults();
+        }
+
+        function showExtractResults() {
+            document.getElementById('extractResult').style.display = 'block';
+            document.getElementById('totalSites').textContent = extractedDescriptions.length;
+            document.getElementById('sitesWithDescriptions').textContent = 
+                extractedDescriptions.filter(site => site.description.length > 0).length;
+            
+            showSuccess('successMessage1', `Successfully extracted descriptions from ${extractedDescriptions.length} sites!`);
+        }
+
+        function downloadDescriptions() {
+            // Create tab-separated format for easy editing
+            let content = 'Site Name\tDescription\n';
+            
+            extractedDescriptions.forEach(site => {
+                // Escape tabs and newlines in the data
+                const name = site.name.replace(/\t/g, ' ').replace(/\n/g, ' ');
+                const description = site.description.replace(/\t/g, ' ').replace(/\n/g, ' ');
+                content += `${name}\t${description}\n`;
+            });
+
+            // Create and download file
+            const blob = new Blob([content], { type: 'text/plain' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = 'descriptions_for_editing.txt';
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+        }
+
+        function togglePreview(previewId) {
+            const preview = document.getElementById(previewId);
+            const content = document.getElementById(previewId + 'Content');
+            
+            if (preview.classList.contains('hidden')) {
+                if (previewId === 'extractPreview') {
+                    let previewText = '';
+                    extractedDescriptions.slice(0, 5).forEach(site => {
+                        previewText += `${site.name}\t${site.description}\n`;
+                    });
+                    if (extractedDescriptions.length > 5) {
+                        previewText += `... and ${extractedDescriptions.length - 5} more sites`;
+                    }
+                    content.textContent = previewText;
+                } else if (previewId === 'mergePreview') {
+                    content.textContent = JSON.stringify(updatedJSON.slice(0, 3), null, 2);
+                }
+                preview.classList.remove('hidden');
+            } else {
+                preview.classList.add('hidden');
+            }
+        }
+
+        // Step 2: Merge edited descriptions back
+        document.getElementById('editedInput').addEventListener('change', function(e) {
+            const file = e.target.files[0];
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    try {
+                        const editedContent = e.target.result;
+                        mergeEditedDescriptions(editedContent);
+                    } catch (error) {
+                        showError('errorMessage2', 'Error reading the edited file.');
+                    }
+                };
+                reader.readAsText(file);
+            }
+        });
+
+        function mergeEditedDescriptions(editedContent) {
+            if (originalJSON.length === 0) {
+                showError('errorMessage2', 'Please complete Step 1 first by uploading your original JSON.');
+                return;
+            }
+
+            try {
+                // Parse the edited descriptions
+                const lines = editedContent.split('\n');
+                const editedDescriptions = new Map();
+                
+                // Skip header line if it exists
+                const startIndex = lines[0] && lines[0].includes('Site Name') ? 1 : 0;
+                
+                for (let i = startIndex; i < lines.length; i++) {
+                    const line = lines[i].trim();
+                    if (line) {
+                        const parts = line.split('\t');
+                        if (parts.length >= 2) {
+                            const name = parts[0].trim();
+                            const description = parts.slice(1).join('\t').trim(); // Join in case description contains tabs
+                            editedDescriptions.set(name, description);
+                        }
+                    }
+                }
+
+                // Merge changes back into original JSON
+                updatedJSON = originalJSON.map(site => {
+                    const siteName = site.name || 'Unnamed Site';
+                    const newDescription = editedDescriptions.get(siteName);
+                    
+                    if (newDescription !== undefined) {
+                        return {
+                            ...site,
+                            description: cleanDescription(newDescription)
+                        };
+                    }
+                    return site;
+                });
+
+                showMergeResults(editedDescriptions);
+
+            } catch (error) {
+                showError('errorMessage2', 'Error parsing the edited file. Please check the format.');
+            }
+        }
+
+        function cleanDescription(description) {
+            if (!description) return '';
+            return description
+                .replace(/"/g, '')
+                .replace(/"/g, '')
+                .replace(/"/g, '')
+                .replace(/'/g, "'")
+                .replace(/'/g, "'")
+                .trim();
+        }
+
+        function showMergeResults(editedDescriptions) {
+            const updatedCount = originalJSON.filter(site => {
+                const siteName = site.name || 'Unnamed Site';
+                return editedDescriptions.has(siteName);
+            }).length;
+
+            document.getElementById('mergeResult').style.display = 'block';
+            document.getElementById('updatedSites').textContent = updatedCount;
+            document.getElementById('unchangedSites').textContent = originalJSON.length - updatedCount;
+            
+            showSuccess('successMessage2', `Successfully updated ${updatedCount} site descriptions!`);
+        }
+
+        function downloadUpdatedJSON() {
+            const jsonString = JSON.stringify(updatedJSON, null, 2);
+            const blob = new Blob([jsonString], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `updated_localstops_${new Date().toISOString().split('T')[0]}.json`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+        }
+
+        function showSuccess(elementId, message) {
+            const element = document.getElementById(elementId);
+            element.textContent = message;
+            element.style.display = 'block';
+            document.getElementById(elementId.replace('success', 'error')).style.display = 'none';
+            setTimeout(() => {
+                element.style.display = 'none';
+            }, 5000);
+        }
+
+        function showError(elementId, message) {
+            const element = document.getElementById(elementId);
+            element.textContent = message;
+            element.style.display = 'block';
+            document.getElementById(elementId.replace('error', 'success')).style.display = 'none';
+        }
+    </script>
+</body>
+</html>
