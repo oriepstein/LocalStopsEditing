@@ -1,214 +1,320 @@
-# Dockerfile
-FROM node:18-alpine
-
-# Create app directory
-WORKDIR /app
-
-# Copy package files
-COPY package*.json ./
-
-# Install dependencies
-RUN npm ci --only=production
-
-# Copy app source
-COPY . .
-
-# Create non-root user
-RUN addgroup -g 1001 -S nodejs
-RUN adduser -S nodeuser -u 1001
-
-# Change ownership of the app directory
-RUN chown -R nodeuser:nodejs /app
-USER nodeuser
-
-# Expose port
-EXPOSE 3000
-
-# Health check
-HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
-  CMD curl -f http://localhost:3000/health || exit 1
-
-# Start the application
-CMD ["npm", "start"]
-
----
-
-# .dockerignore
-node_modules
-npm-debug.log
-.env
-.git
-.gitignore
-README.md
-Dockerfile
-.dockerignore
-
----
-
-# .gitignore
-# Dependencies
-node_modules/
-npm-debug.log*
-
-# Environment variables
-.env
-.env.local
-.env.development.local
-.env.test.local
-.env.production.local
-
-# Logs
-logs
-*.log
-
-# Runtime data
-pids
-*.pid
-*.seed
-*.pid.lock
-
-# Coverage directory used by tools like istanbul
-coverage/
-
-# OS generated files
-.DS_Store
-.DS_Store?
-._*
-.Spotlight-V100
-.Trashes
-ehthumbs.db
-Thumbs.db
-
-# Private keys
-*.pem
-
----
-
-# test/converter.test.js
-const { jsonToKml, createPlacemark } = require('../app');
-
-describe('JSON to KML Conversion', () => {
-  test('should convert simple JSON array to KML', () => {
-    const jsonData = [
-      {
-        name: 'Test Location',
-        description: 'A test location',
-        lat: 40.7128,
-        lng: -74.0060
-      }
-    ];
-
-    const kml = jsonToKml(jsonData, 'test');
-    
-    expect(kml).toContain('<?xml version="1.0" encoding="UTF-8"?>');
-    expect(kml).toContain('<kml xmlns="http://www.opengis.net/kml/2.2">');
-    expect(kml).toContain('Test Location');
-    expect(kml).toContain('-74.0060,40.7128,0');
-  });
-
-  test('should handle GeoJSON format', () => {
-    const geoJsonData = {
-      type: 'FeatureCollection',
-      features: [
-        {
-          type: 'Feature',
-          geometry: {
-            type: 'Point',
-            coordinates: [-74.0060, 40.7128]
-          },
-          properties: {
-            name: 'New York City',
-            description: 'The Big Apple'
-          }
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>JSON to KML Converter</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
         }
-      ]
-    };
 
-    const kml = jsonToKml(geoJsonData, 'geojson-test');
-    
-    expect(kml).toContain('New York City');
-    expect(kml).toContain('-74.0060,40.7128,0');
-  });
-
-  test('should handle locations format', () => {
-    const locationsData = {
-      locations: [
-        {
-          title: 'Central Park',
-          latitude: 40.7829,
-          longitude: -73.9654,
-          info: 'Famous park in Manhattan'
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
         }
-      ]
-    };
 
-    const kml = jsonToKml(locationsData, 'locations-test');
-    
-    expect(kml).toContain('Central Park');
-    expect(kml).toContain('-73.9654,40.7829,0');
-  });
-});
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 16px;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.1);
+            overflow: hidden;
+        }
 
----
+        .header {
+            background: linear-gradient(135deg, #4CAF50 0%, #45a049 100%);
+            color: white;
+            padding: 30px;
+            text-align: center;
+        }
 
-# railway.toml
-[build]
-command = "npm install"
+        .header h1 {
+            font-size: 2.5em;
+            margin-bottom: 10px;
+            font-weight: 700;
+        }
 
-[deploy]
-startCommand = "npm start"
-restartPolicyType = "ON_FAILURE"
-restartPolicyMaxRetries = 10
+        .header p {
+            font-size: 1.1em;
+            opacity: 0.9;
+        }
 
-[[services]]
-name = "json-to-kml-app"
+        .content {
+            padding: 40px;
+        }
 
-[services.variables]
-PORT = "3000"
+        .converter-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 30px;
+            margin-bottom: 30px;
+        }
 
----
+        .input-section, .output-section {
+            background: #f8f9fa;
+            border-radius: 12px;
+            padding: 25px;
+            border: 2px solid #e9ecef;
+        }
 
-# Procfile
-web: node app.js
+        .section-title {
+            font-size: 1.3em;
+            font-weight: 600;
+            margin-bottom: 15px;
+            color: #333;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
 
----
+        .section-title::before {
+            content: "📄";
+        }
 
-# example-data/sample-locations.json
-[
+        .output-section .section-title::before {
+            content: "🗺️";
+        }
+
+        textarea {
+            width: 100%;
+            min-height: 300px;
+            padding: 15px;
+            border: 2px solid #ddd;
+            border-radius: 8px;
+            font-family: 'Courier New', monospace;
+            font-size: 13px;
+            resize: vertical;
+            transition: border-color 0.3s;
+        }
+
+        textarea:focus {
+            outline: none;
+            border-color: #4CAF50;
+        }
+
+        .button-group {
+            display: flex;
+            gap: 15px;
+            justify-content: center;
+            margin-bottom: 30px;
+        }
+
+        button {
+            padding: 12px 24px;
+            border: none;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .convert-btn {
+            background: linear-gradient(135deg, #4CAF50 0%, #45a049 100%);
+            color: white;
+        }
+
+        .convert-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 16px rgba(76, 175, 80, 0.3);
+        }
+
+        .download-btn {
+            background: linear-gradient(135deg, #2196F3 0%, #1976D2 100%);
+            color: white;
+        }
+
+        .download-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 16px rgba(33, 150, 243, 0.3);
+        }
+
+        .clear-btn {
+            background: #f44336;
+            color: white;
+        }
+
+        .clear-btn:hover {
+            background: #da190b;
+            transform: translateY(-2px);
+        }
+
+        .examples {
+            background: #e8f5e8;
+            border-radius: 12px;
+            padding: 25px;
+            margin-top: 30px;
+        }
+
+        .examples h3 {
+            color: #2e7d32;
+            margin-bottom: 20px;
+            font-size: 1.2em;
+        }
+
+        .example-tabs {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+
+        .tab-btn {
+            padding: 8px 16px;
+            background: white;
+            border: 2px solid #4CAF50;
+            color: #4CAF50;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 14px;
+            transition: all 0.3s;
+        }
+
+        .tab-btn.active {
+            background: #4CAF50;
+            color: white;
+        }
+
+        .example-content {
+            background: white;
+            padding: 15px;
+            border-radius: 8px;
+            border-left: 4px solid #4CAF50;
+        }
+
+        pre {
+            margin: 0;
+            font-family: 'Courier New', monospace;
+            font-size: 12px;
+            white-space: pre-wrap;
+            word-wrap: break-word;
+        }
+
+        .error {
+            background: #ffebee;
+            border: 2px solid #f44336;
+            color: #c62828;
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            font-weight: 500;
+        }
+
+        .success {
+            background: #e8f5e8;
+            border: 2px solid #4CAF50;
+            color: #2e7d32;
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            font-weight: 500;
+        }
+
+        @media (max-width: 768px) {
+            .converter-grid {
+                grid-template-columns: 1fr;
+                gap: 20px;
+            }
+            
+            .header h1 {
+                font-size: 2em;
+            }
+            
+            .content {
+                padding: 20px;
+            }
+            
+            .button-group {
+                flex-direction: column;
+                align-items: center;
+            }
+            
+            .example-tabs {
+                flex-direction: column;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>JSON to KML Converter</h1>
+            <p>Convert your JSON location data to Google Maps compatible KML format</p>
+        </div>
+
+        <div class="content">
+            <div id="message-area"></div>
+
+            <div class="converter-grid">
+                <div class="input-section">
+                    <div class="section-title">JSON Input</div>
+                    <textarea 
+                        id="jsonInput" 
+                        placeholder="Paste your JSON data here...&#10;&#10;Example:&#10;[&#10;  {&#10;    &quot;name&quot;: &quot;Central Park&quot;,&#10;    &quot;lat&quot;: 40.7829,&#10;    &quot;lng&quot;: -73.9654&#10;  }&#10;]"
+                    ></textarea>
+                </div>
+
+                <div class="output-section">
+                    <div class="section-title">KML Output</div>
+                    <textarea 
+                        id="kmlOutput" 
+                        readonly 
+                        placeholder="Your KML output will appear here..."
+                    ></textarea>
+                </div>
+            </div>
+
+            <div class="button-group">
+                <button class="convert-btn" onclick="convertJSON()">
+                    🔄 Convert to KML
+                </button>
+                <button class="download-btn" onclick="downloadKML()">
+                    💾 Download KML
+                </button>
+                <button class="clear-btn" onclick="clearAll()">
+                    🗑️ Clear All
+                </button>
+            </div>
+
+            <div class="examples">
+                <h3>📋 Supported JSON Formats</h3>
+                <div class="example-tabs">
+                    <button class="tab-btn active" onclick="showExample('standard')">Standard Format</button>
+                    <button class="tab-btn" onclick="showExample('geojson')">GeoJSON</button>
+                    <button class="tab-btn" onclick="showExample('custom')">Custom Format</button>
+                </div>
+                <div class="example-content" id="example-content">
+                    <!-- Example content will be loaded here -->
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const examples = {
+            standard: `[
   {
     "name": "Statue of Liberty",
-    "description": "Famous landmark and symbol of freedom in New York Harbor",
+    "description": "Famous landmark in New York Harbor",
     "lat": 40.6892,
-    "lng": -74.0445,
-    "category": "landmark"
+    "lng": -74.0445
   },
   {
-    "name": "Central Park",
-    "description": "Large public park in the heart of Manhattan",
+    "name": "Central Park", 
+    "description": "Large public park in Manhattan",
     "lat": 40.7829,
-    "lng": -73.9654,
-    "category": "park"
-  },
-  {
-    "name": "Times Square",
-    "description": "Bustling commercial intersection and entertainment hub",
-    "lat": 40.7580,
-    "lng": -73.9855,
-    "category": "entertainment"
-  },
-  {
-    "name": "Brooklyn Bridge",
-    "description": "Historic suspension bridge connecting Manhattan and Brooklyn",
-    "lat": 40.7061,
-    "lng": -73.9969,
-    "category": "bridge"
+    "lng": -73.9654
   }
-]
-
----
-
-# example-data/sample-geojson.json
-{
+]`,
+            geojson: `{
   "type": "FeatureCollection",
   "features": [
     {
@@ -219,21 +325,180 @@ web: node app.js
       },
       "properties": {
         "name": "San Francisco",
-        "description": "The Golden Gate City",
-        "population": 883305
-      }
-    },
-    {
-      "type": "Feature", 
-      "geometry": {
-        "type": "Point",
-        "coordinates": [-118.2437, 34.0522]
-      },
-      "properties": {
-        "name": "Los Angeles",
-        "description": "City of Angels",
-        "population": 3971883
+        "description": "The Golden Gate City"
       }
     }
   ]
-}
+}`,
+            custom: `{
+  "locations": [
+    {
+      "title": "Empire State Building",
+      "info": "Iconic Art Deco skyscraper",
+      "latitude": 40.7484,
+      "longitude": -73.9857
+    }
+  ]
+}`
+        };
+
+        function showExample(type) {
+            // Update active tab
+            document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
+            event.target.classList.add('active');
+            
+            // Show example
+            document.getElementById('example-content').innerHTML = `<pre>${examples[type]}</pre>`;
+        }
+
+        function showMessage(message, type = 'info') {
+            const messageArea = document.getElementById('message-area');
+            messageArea.innerHTML = `<div class="${type}">${message}</div>`;
+            setTimeout(() => {
+                messageArea.innerHTML = '';
+            }, 5000);
+        }
+
+        function convertJSON() {
+            const jsonInput = document.getElementById('jsonInput').value.trim();
+            const kmlOutput = document.getElementById('kmlOutput');
+
+            if (!jsonInput) {
+                showMessage('Please enter some JSON data to convert.', 'error');
+                return;
+            }
+
+            try {
+                const jsonData = JSON.parse(jsonInput);
+                const kmlContent = jsonToKml(jsonData, 'converted-data');
+                kmlOutput.value = kmlContent;
+                showMessage('✅ Successfully converted JSON to KML!', 'success');
+            } catch (error) {
+                showMessage(`❌ Error: ${error.message}`, 'error');
+            }
+        }
+
+        function jsonToKml(jsonData, filename) {
+            let kmlContent = `<?xml version="1.0" encoding="UTF-8"?>
+<kml xmlns="http://www.opengis.net/kml/2.2">
+  <Document>
+    <name>${filename}</name>
+    <description>Converted from JSON to KML</description>
+`;
+
+            // Handle different JSON structures
+            if (Array.isArray(jsonData)) {
+                jsonData.forEach((item, index) => {
+                    kmlContent += createPlacemark(item, index);
+                });
+            } else if (jsonData.features && Array.isArray(jsonData.features)) {
+                // GeoJSON format
+                jsonData.features.forEach((feature, index) => {
+                    kmlContent += createGeoJsonPlacemark(feature, index);
+                });
+            } else if (jsonData.locations && Array.isArray(jsonData.locations)) {
+                // Custom locations format
+                jsonData.locations.forEach((location, index) => {
+                    kmlContent += createPlacemark(location, index);
+                });
+            } else {
+                // Single object
+                kmlContent += createPlacemark(jsonData, 0);
+            }
+
+            kmlContent += `  </Document>
+</kml>`;
+
+            return kmlContent;
+        }
+
+        function createPlacemark(data, index) {
+            const name = data.name || data.title || data.label || `Point ${index + 1}`;
+            const description = data.description || data.desc || data.info || '';
+            
+            // Try to extract coordinates from various possible field names
+            let lat, lng;
+            
+            if (data.lat !== undefined && data.lng !== undefined) {
+                lat = data.lat;
+                lng = data.lng;
+            } else if (data.latitude !== undefined && data.longitude !== undefined) {
+                lat = data.latitude;
+                lng = data.longitude;
+            } else if (data.coordinates && Array.isArray(data.coordinates)) {
+                lng = data.coordinates[0]; // GeoJSON format: [lng, lat]
+                lat = data.coordinates[1];
+            } else if (data.location) {
+                lat = data.location.lat || data.location.latitude;
+                lng = data.location.lng || data.location.longitude;
+            }
+
+            if (lat === undefined || lng === undefined) {
+                console.warn(`Skipping item ${index}: No valid coordinates found`);
+                return '';
+            }
+
+            return `    <Placemark>
+      <name><![CDATA[${name}]]></name>
+      <description><![CDATA[${description}]]></description>
+      <Point>
+        <coordinates>${lng},${lat},0</coordinates>
+      </Point>
+    </Placemark>
+`;
+        }
+
+        function createGeoJsonPlacemark(feature, index) {
+            const properties = feature.properties || {};
+            const name = properties.name || properties.title || `Feature ${index + 1}`;
+            const description = properties.description || '';
+            
+            if (feature.geometry && feature.geometry.type === 'Point') {
+                const coordinates = feature.geometry.coordinates;
+                return `    <Placemark>
+      <name><![CDATA[${name}]]></name>
+      <description><![CDATA[${description}]]></description>
+      <Point>
+        <coordinates>${coordinates[0]},${coordinates[1]},${coordinates[2] || 0}</coordinates>
+      </Point>
+    </Placemark>
+`;
+            }
+            
+            return '';
+        }
+
+        function downloadKML() {
+            const kmlContent = document.getElementById('kmlOutput').value;
+            
+            if (!kmlContent.trim()) {
+                showMessage('No KML content to download. Please convert some JSON first.', 'error');
+                return;
+            }
+
+            const blob = new Blob([kmlContent], { type: 'application/vnd.google-earth.kml+xml' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = 'converted-locations.kml';
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+            
+            showMessage('📁 KML file downloaded successfully!', 'success');
+        }
+
+        function clearAll() {
+            document.getElementById('jsonInput').value = '';
+            document.getElementById('kmlOutput').value = '';
+            showMessage('🗑️ All content cleared!', 'success');
+        }
+
+        // Initialize with first example
+        window.addEventListener('load', () => {
+            showExample('standard');
+        });
+    </script>
+</body>
+</html>
