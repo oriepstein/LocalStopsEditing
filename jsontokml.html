@@ -83,7 +83,7 @@
 
         textarea {
             width: 100%;
-            min-height: 300px;
+            min-height: 200px;
             padding: 15px;
             border: 2px solid #ddd;
             border-radius: 8px;
@@ -96,6 +96,87 @@
         textarea:focus {
             outline: none;
             border-color: #4CAF50;
+        }
+
+        .file-upload-area {
+            border: 2px dashed #ddd;
+            border-radius: 8px;
+            padding: 30px;
+            text-align: center;
+            background: #fafafa;
+            margin-bottom: 20px;
+            transition: all 0.3s;
+            cursor: pointer;
+        }
+
+        .file-upload-area:hover {
+            border-color: #4CAF50;
+            background: #f0f8f0;
+        }
+
+        .file-upload-area.dragover {
+            border-color: #4CAF50;
+            background: #e8f5e8;
+            transform: scale(1.02);
+        }
+
+        .upload-content {
+            pointer-events: none;
+        }
+
+        .upload-icon {
+            font-size: 3em;
+            margin-bottom: 10px;
+        }
+
+        .upload-btn {
+            background: #4CAF50;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 6px;
+            font-size: 14px;
+            cursor: pointer;
+            margin-top: 10px;
+            pointer-events: all;
+        }
+
+        .upload-btn:hover {
+            background: #45a049;
+        }
+
+        .divider {
+            text-align: center;
+            margin: 20px 0;
+            position: relative;
+        }
+
+        .divider::before {
+            content: '';
+            position: absolute;
+            top: 50%;
+            left: 0;
+            right: 0;
+            height: 1px;
+            background: #ddd;
+        }
+
+        .divider span {
+            background: #f8f9fa;
+            padding: 0 15px;
+            color: #666;
+            font-size: 14px;
+            position: relative;
+        }
+
+        .file-info {
+            background: #e8f5e8;
+            border: 1px solid #4CAF50;
+            color: #2e7d32;
+            padding: 10px;
+            border-radius: 6px;
+            margin-bottom: 15px;
+            font-size: 14px;
         }
 
         .button-group {
@@ -256,6 +337,24 @@
             <div class="converter-grid">
                 <div class="input-section">
                     <div class="section-title">JSON Input</div>
+                    
+                    <!-- File Upload Area -->
+                    <div class="file-upload-area" id="fileUploadArea">
+                        <div class="upload-content">
+                            <div class="upload-icon">📁</div>
+                            <p><strong>Upload JSON File</strong></p>
+                            <p>Drag & drop your .json file here or click to browse</p>
+                            <input type="file" id="fileInput" accept=".json,.txt" style="display: none;">
+                            <button type="button" class="upload-btn" onclick="document.getElementById('fileInput').click()">
+                                Choose File
+                            </button>
+                        </div>
+                    </div>
+                    
+                    <div class="divider">
+                        <span>OR</span>
+                    </div>
+                    
                     <textarea 
                         id="jsonInput" 
                         placeholder="Paste your JSON data here...&#10;&#10;Example:&#10;[&#10;  {&#10;    &quot;name&quot;: &quot;Central Park&quot;,&#10;    &quot;lat&quot;: 40.7829,&#10;    &quot;lng&quot;: -73.9654&#10;  }&#10;]"
@@ -503,7 +602,91 @@
         // Initialize with first example
         window.addEventListener('load', () => {
             showExample('standard');
+            initializeFileUpload();
         });
+
+        function initializeFileUpload() {
+            const fileInput = document.getElementById('fileInput');
+            const uploadArea = document.getElementById('fileUploadArea');
+
+            // File input change handler
+            fileInput.addEventListener('change', handleFileSelect);
+
+            // Drag and drop handlers
+            uploadArea.addEventListener('dragover', handleDragOver);
+            uploadArea.addEventListener('dragleave', handleDragLeave);
+            uploadArea.addEventListener('drop', handleFileDrop);
+            uploadArea.addEventListener('click', () => fileInput.click());
+        }
+
+        function handleFileSelect(event) {
+            const file = event.target.files[0];
+            if (file) {
+                readFile(file);
+            }
+        }
+
+        function handleDragOver(event) {
+            event.preventDefault();
+            event.currentTarget.classList.add('dragover');
+        }
+
+        function handleDragLeave(event) {
+            event.currentTarget.classList.remove('dragover');
+        }
+
+        function handleFileDrop(event) {
+            event.preventDefault();
+            event.currentTarget.classList.remove('dragover');
+            
+            const files = event.dataTransfer.files;
+            if (files.length > 0) {
+                readFile(files[0]);
+            }
+        }
+
+        function readFile(file) {
+            // Check file type
+            if (!file.name.toLowerCase().endsWith('.json') && !file.name.toLowerCase().endsWith('.txt')) {
+                showMessage('Please select a JSON file (.json or .txt)', 'error');
+                return;
+            }
+
+            // Show file info
+            showFileInfo(file);
+
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                const content = e.target.result;
+                document.getElementById('jsonInput').value = content;
+                showMessage(`📁 File "${file.name}" loaded successfully! Click "Convert to KML" to process.`, 'success');
+            };
+
+            reader.onerror = function() {
+                showMessage('Error reading file. Please try again.', 'error');
+            };
+
+            reader.readAsText(file);
+        }
+
+        function showFileInfo(file) {
+            const fileSize = (file.size / 1024).toFixed(1);
+            const uploadArea = document.getElementById('fileUploadArea');
+            
+            const existingInfo = uploadArea.querySelector('.file-info');
+            if (existingInfo) {
+                existingInfo.remove();
+            }
+
+            const fileInfo = document.createElement('div');
+            fileInfo.className = 'file-info';
+            fileInfo.innerHTML = `
+                <strong>📄 ${file.name}</strong><br>
+                Size: ${fileSize} KB | Modified: ${new Date(file.lastModified).toLocaleDateString()}
+            `;
+            
+            uploadArea.parentNode.insertBefore(fileInfo, uploadArea.nextSibling);
+        }
     </script>
 </body>
 </html>
