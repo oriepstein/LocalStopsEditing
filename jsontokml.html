@@ -370,9 +370,14 @@
 
             try {
                 const jsonData = JSON.parse(jsonInput);
-                const kmlContent = jsonToKml(jsonData, 'converted-data');
-                kmlOutput.value = kmlContent;
-                showMessage('✅ Successfully converted JSON to KML!', 'success');
+                const result = jsonToKml(jsonData, 'converted-data');
+                kmlOutput.value = result.kml;
+                
+                if (result.processedCount === 0) {
+                    showMessage(`⚠️ No valid locations found! ${result.debugInfo}`, 'error');
+                } else {
+                    showMessage(`✅ Successfully converted ${result.processedCount} location(s) to KML!`, 'success');
+                }
             } catch (error) {
                 showMessage(`❌ Error: ${error.message}`, 'error');
             }
@@ -471,7 +476,7 @@
         function downloadKML() {
             const kmlContent = document.getElementById('kmlOutput').value;
             
-            if (!kmlContent.trim()) {
+            if (!kmlContent.trim() || kmlContent.includes('<description>Converted from JSON to KML</description>\n  </Document>')) {
                 showMessage('No KML content to download. Please convert some JSON first.', 'error');
                 return;
             }
