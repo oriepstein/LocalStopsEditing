@@ -1,0 +1,239 @@
+# Dockerfile
+FROM node:18-alpine
+
+# Create app directory
+WORKDIR /app
+
+# Copy package files
+COPY package*.json ./
+
+# Install dependencies
+RUN npm ci --only=production
+
+# Copy app source
+COPY . .
+
+# Create non-root user
+RUN addgroup -g 1001 -S nodejs
+RUN adduser -S nodeuser -u 1001
+
+# Change ownership of the app directory
+RUN chown -R nodeuser:nodejs /app
+USER nodeuser
+
+# Expose port
+EXPOSE 3000
+
+# Health check
+HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
+  CMD curl -f http://localhost:3000/health || exit 1
+
+# Start the application
+CMD ["npm", "start"]
+
+---
+
+# .dockerignore
+node_modules
+npm-debug.log
+.env
+.git
+.gitignore
+README.md
+Dockerfile
+.dockerignore
+
+---
+
+# .gitignore
+# Dependencies
+node_modules/
+npm-debug.log*
+
+# Environment variables
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# Logs
+logs
+*.log
+
+# Runtime data
+pids
+*.pid
+*.seed
+*.pid.lock
+
+# Coverage directory used by tools like istanbul
+coverage/
+
+# OS generated files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# Private keys
+*.pem
+
+---
+
+# test/converter.test.js
+const { jsonToKml, createPlacemark } = require('../app');
+
+describe('JSON to KML Conversion', () => {
+  test('should convert simple JSON array to KML', () => {
+    const jsonData = [
+      {
+        name: 'Test Location',
+        description: 'A test location',
+        lat: 40.7128,
+        lng: -74.0060
+      }
+    ];
+
+    const kml = jsonToKml(jsonData, 'test');
+    
+    expect(kml).toContain('<?xml version="1.0" encoding="UTF-8"?>');
+    expect(kml).toContain('<kml xmlns="http://www.opengis.net/kml/2.2">');
+    expect(kml).toContain('Test Location');
+    expect(kml).toContain('-74.0060,40.7128,0');
+  });
+
+  test('should handle GeoJSON format', () => {
+    const geoJsonData = {
+      type: 'FeatureCollection',
+      features: [
+        {
+          type: 'Feature',
+          geometry: {
+            type: 'Point',
+            coordinates: [-74.0060, 40.7128]
+          },
+          properties: {
+            name: 'New York City',
+            description: 'The Big Apple'
+          }
+        }
+      ]
+    };
+
+    const kml = jsonToKml(geoJsonData, 'geojson-test');
+    
+    expect(kml).toContain('New York City');
+    expect(kml).toContain('-74.0060,40.7128,0');
+  });
+
+  test('should handle locations format', () => {
+    const locationsData = {
+      locations: [
+        {
+          title: 'Central Park',
+          latitude: 40.7829,
+          longitude: -73.9654,
+          info: 'Famous park in Manhattan'
+        }
+      ]
+    };
+
+    const kml = jsonToKml(locationsData, 'locations-test');
+    
+    expect(kml).toContain('Central Park');
+    expect(kml).toContain('-73.9654,40.7829,0');
+  });
+});
+
+---
+
+# railway.toml
+[build]
+command = "npm install"
+
+[deploy]
+startCommand = "npm start"
+restartPolicyType = "ON_FAILURE"
+restartPolicyMaxRetries = 10
+
+[[services]]
+name = "json-to-kml-app"
+
+[services.variables]
+PORT = "3000"
+
+---
+
+# Procfile
+web: node app.js
+
+---
+
+# example-data/sample-locations.json
+[
+  {
+    "name": "Statue of Liberty",
+    "description": "Famous landmark and symbol of freedom in New York Harbor",
+    "lat": 40.6892,
+    "lng": -74.0445,
+    "category": "landmark"
+  },
+  {
+    "name": "Central Park",
+    "description": "Large public park in the heart of Manhattan",
+    "lat": 40.7829,
+    "lng": -73.9654,
+    "category": "park"
+  },
+  {
+    "name": "Times Square",
+    "description": "Bustling commercial intersection and entertainment hub",
+    "lat": 40.7580,
+    "lng": -73.9855,
+    "category": "entertainment"
+  },
+  {
+    "name": "Brooklyn Bridge",
+    "description": "Historic suspension bridge connecting Manhattan and Brooklyn",
+    "lat": 40.7061,
+    "lng": -73.9969,
+    "category": "bridge"
+  }
+]
+
+---
+
+# example-data/sample-geojson.json
+{
+  "type": "FeatureCollection",
+  "features": [
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [-122.4194, 37.7749]
+      },
+      "properties": {
+        "name": "San Francisco",
+        "description": "The Golden Gate City",
+        "population": 883305
+      }
+    },
+    {
+      "type": "Feature", 
+      "geometry": {
+        "type": "Point",
+        "coordinates": [-118.2437, 34.0522]
+      },
+      "properties": {
+        "name": "Los Angeles",
+        "description": "City of Angels",
+        "population": 3971883
+      }
+    }
+  ]
+}
