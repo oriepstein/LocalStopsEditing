@@ -1,0 +1,288 @@
+import React, { useState } from 'react';
+import { Upload, Download, AlertCircle, CheckCircle } from 'lucide-react';
+
+export default function KMLJSONMerger() {
+  const [existingJSON, setExistingJSON] = useState(null);
+  const [kmlFile, setKMLFile] = useState(null);
+  const [mergedData, setMergedData] = useState(null);
+  const [status, setStatus] = useState('');
+  const [error, setError] = useState('');
+
+  const handleJSONUpload = (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      try {
+        const json = JSON.parse(event.target.result);
+        setExistingJSON(json);
+        setStatus('Existing JSON loaded successfully');
+        setError('');
+      } catch (err) {
+        setError('Error parsing JSON file: ' + err.message);
+        setStatus('');
+      }
+    };
+    reader.readAsText(file);
+  };
+
+  const handleKMLUpload = (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      setKMLFile(event.target.result);
+      setStatus('KML file loaded successfully');
+      setError('');
+    };
+    reader.readAsText(file);
+  };
+
+  const parseKML = (kmlString) => {
+    const parser = new DOMParser();
+    const xmlDoc = parser.parseFromString(kmlString, 'text/xml');
+    
+    const placemarks = xmlDoc.getElementsByTagName('Placemark');
+    const locations = [];
+
+    for (let i = 0; i < placemarks.length; i++) {
+      const placemark = placemarks[i];
+      
+      const name = placemark.getElementsByTagName('name')[0]?.textContent || '';
+      const description = placemark.getElementsByTagName('description')[0]?.textContent || '';
+      
+      const coordinates = placemark.getElementsByTagName('coordinates')[0]?.textContent.trim();
+      let lon = null, lat = null;
+      if (coordinates) {
+        const coords = coordinates.split(',');
+        lon = parseFloat(coords[0]);
+        lat = parseFloat(coords[1]);
+      }
+
+      // Extract extended data if present
+      let categories = [];
+      let url = null;
+      let imageURL = null;
+      let info = null;
+
+      const extendedData = placemark.getElementsByTagName('ExtendedData')[0];
+      if (extendedData) {
+        const dataElements = extendedData.getElementsByTagName('Data');
+        for (let j = 0; j < dataElements.length; j++) {
+          const dataElement = dataElements[j];
+          const dataName = dataElement.getAttribute('name');
+          const value = dataElement.getElementsByTagName('value')[0]?.textContent;
+
+          if (dataName === 'categories' && value) {
+            categories = value.split(',').map(c => c.trim()).filter(c => c);
+          } else if (dataName === 'url') {
+            url = value || null;
+          } else if (dataName === 'imageURL') {
+            imageURL = value || null;
+          } else if (dataName === 'info') {
+            info = value || null;
+          }
+        }
+      }
+
+      locations.push({
+        name,
+        lat,
+        lon,
+        icon: null,
+        imageURL,
+        description,
+        info,
+        categories,
+        url
+      });
+    }
+
+    return locations;
+  };
+
+  const mergeData = () => {
+    if (!existingJSON || !kmlFile) {
+      setError('Please upload both files before merging');
+      return;
+    }
+
+    try {
+      const kmlLocations = parseKML(kmlFile);
+      
+      // Create a map of existing locations (case-insensitive)
+      const existingMap = new Map();
+      existingJSON.forEach(loc => {
+        existingMap.set(loc.name.toLowerCase(), loc);
+      });
+
+      // Track which existing locations were updated
+      const updatedNames = new Set();
+      const result = [];
+
+      // Process KML locations (KML wins)
+      kmlLocations.forEach(kmlLoc => {
+        const nameLower = kmlLoc.name.toLowerCase();
+        updatedNames.add(nameLower);
+        result.push(kmlLoc);
+      });
+
+      // Add locations that only exist in JSON (not in KML)
+      existingJSON.forEach(jsonLoc => {
+        const nameLower = jsonLoc.name.toLowerCase();
+        if (!updatedNames.has(nameLower)) {
+          result.push(jsonLoc);
+        }
+      });
+
+      setMergedData(result);
+      setStatus(`Merge complete! ${kmlLocations.length} locations from KML, ${result.length} total locations in merged data.`);
+      setError('');
+    } catch (err) {
+      setError('Error merging data: ' + err.message);
+      setStatus('');
+    }
+  };
+
+  const downloadJSON = () => {
+    if (!mergedData) return;
+
+    const dataStr = JSON.stringify(mergedData, null, 2);
+    const dataBlob = new Blob([dataStr], { type: 'application/json' });
+    const url = URL.createObjectURL(dataBlob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = 'merged_locations.json';
+    link.click();
+    URL.revokeObjectURL(url);
+  };
+
+  return (
+    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 p-8">
+      <div className="max-w-4xl mx-auto">
+        <h1 className="text-4xl font-bold text-gray-800 mb-2">KML to JSON Merger</h1>
+        <p className="text-gray-600 mb-8">Update your existing JSON with new data from a KML file</p>
+
+        <div className="bg-white rounded-lg shadow-lg p-6 mb-6">
+          <h2 className="text-xl font-semibold mb-4 text-gray-700">Step 1: Upload Files</h2>
+          
+          <div className="grid md:grid-cols-2 gap-4 mb-6">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Existing JSON File
+              </label>
+              <div className="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center hover:border-indigo-500 transition-colors">
+                <Upload className="mx-auto h-12 w-12 text-gray-400 mb-2" />
+                <input
+                  type="file"
+                  accept=".json"
+                  onChange={handleJSONUpload}
+                  className="hidden"
+                  id="json-upload"
+                />
+                <label
+                  htmlFor="json-upload"
+                  className="cursor-pointer text-indigo-600 hover:text-indigo-700 font-medium"
+                >
+                  Choose JSON file
+                </label>
+                {existingJSON && (
+                  <p className="text-sm text-green-600 mt-2">
+                    ✓ {existingJSON.length} locations loaded
+                  </p>
+                )}
+              </div>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Updated KML File
+              </label>
+              <div className="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center hover:border-indigo-500 transition-colors">
+                <Upload className="mx-auto h-12 w-12 text-gray-400 mb-2" />
+                <input
+                  type="file"
+                  accept=".kml,.xml"
+                  onChange={handleKMLUpload}
+                  className="hidden"
+                  id="kml-upload"
+                />
+                <label
+                  htmlFor="kml-upload"
+                  className="cursor-pointer text-indigo-600 hover:text-indigo-700 font-medium"
+                >
+                  Choose KML file
+                </label>
+                {kmlFile && (
+                  <p className="text-sm text-green-600 mt-2">
+                    ✓ KML file loaded
+                  </p>
+                )}
+              </div>
+            </div>
+          </div>
+
+          <button
+            onClick={mergeData}
+            disabled={!existingJSON || !kmlFile}
+            className="w-full bg-indigo-600 text-white py-3 rounded-lg font-semibold hover:bg-indigo-700 disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors"
+          >
+            Merge Data
+          </button>
+        </div>
+
+        {status && (
+          <div className="bg-green-50 border border-green-200 rounded-lg p-4 mb-6 flex items-start">
+            <CheckCircle className="h-5 w-5 text-green-600 mr-3 mt-0.5 flex-shrink-0" />
+            <p className="text-green-800">{status}</p>
+          </div>
+        )}
+
+        {error && (
+          <div className="bg-red-50 border border-red-200 rounded-lg p-4 mb-6 flex items-start">
+            <AlertCircle className="h-5 w-5 text-red-600 mr-3 mt-0.5 flex-shrink-0" />
+            <p className="text-red-800">{error}</p>
+          </div>
+        )}
+
+        {mergedData && (
+          <div className="bg-white rounded-lg shadow-lg p-6">
+            <h2 className="text-xl font-semibold mb-4 text-gray-700">Step 2: Download Result</h2>
+            <button
+              onClick={downloadJSON}
+              className="w-full bg-green-600 text-white py-3 rounded-lg font-semibold hover:bg-green-700 transition-colors flex items-center justify-center"
+            >
+              <Download className="h-5 w-5 mr-2" />
+              Download Merged JSON
+            </button>
+            
+            <div className="mt-6 bg-gray-50 rounded-lg p-4 max-h-96 overflow-y-auto">
+              <h3 className="font-semibold text-gray-700 mb-2">Preview (first 5 locations):</h3>
+              <pre className="text-xs text-gray-600 whitespace-pre-wrap">
+                {JSON.stringify(mergedData.slice(0, 5), null, 2)}
+              </pre>
+              {mergedData.length > 5 && (
+                <p className="text-sm text-gray-500 mt-2 italic">
+                  ...and {mergedData.length - 5} more locations
+                </p>
+              )}
+            </div>
+          </div>
+        )}
+
+        <div className="mt-8 bg-blue-50 border border-blue-200 rounded-lg p-4">
+          <h3 className="font-semibold text-blue-900 mb-2">How it works:</h3>
+          <ul className="text-sm text-blue-800 space-y-1">
+            <li>• Locations are matched by name (case-insensitive)</li>
+            <li>• KML data always overrides existing JSON data for matching locations</li>
+            <li>• New locations from KML are added to the result</li>
+            <li>• Locations only in JSON are preserved</li>
+            <li>• All locations maintain the same field structure</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  );
+}
