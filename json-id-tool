@@ -1,0 +1,188 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>JSON Sight ID Generator</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+
+  <style>
+    body {
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      background: #f5f7fa;
+      padding: 20px;
+    }
+
+    .container {
+      max-width: 1100px;
+      margin: 0 auto;
+      background: white;
+      padding: 20px;
+      border-radius: 10px;
+      box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+    }
+
+    h1 {
+      margin-bottom: 10px;
+    }
+
+    p {
+      color: #555;
+    }
+
+    textarea {
+      width: 100%;
+      height: 300px;
+      font-family: monospace;
+      font-size: 14px;
+      padding: 10px;
+      border-radius: 6px;
+      border: 1px solid #ccc;
+      margin-top: 10px;
+    }
+
+    .controls {
+      display: flex;
+      gap: 10px;
+      margin: 15px 0;
+      flex-wrap: wrap;
+    }
+
+    input[type="text"] {
+      padding: 10px;
+      font-size: 14px;
+      border-radius: 6px;
+      border: 1px solid #ccc;
+      min-width: 220px;
+    }
+
+    button {
+      padding: 10px 18px;
+      border: none;
+      border-radius: 6px;
+      font-size: 14px;
+      cursor: pointer;
+      background: #667eea;
+      color: white;
+    }
+
+    button.secondary {
+      background: #6c757d;
+    }
+
+    .error {
+      color: #b00020;
+      margin-top: 10px;
+      white-space: pre-wrap;
+    }
+
+    .success {
+      color: #2e7d32;
+      margin-top: 10px;
+    }
+  </style>
+</head>
+<body>
+
+<div class="container">
+  <h1>JSON Sight ID Generator</h1>
+  <p>
+    Paste a JSON array of sights. Missing <code>id</code> fields will be added using
+    <code>city_prefix + name</code>.
+  </p>
+
+  <div class="controls">
+    <input type="text" id="cityPrefix" placeholder="City prefix (optional, e.g. brooklyn)" />
+    <button onclick="addIds()">Add IDs</button>
+    <button class="secondary" onclick="clearAll()">Clear</button>
+  </div>
+
+  <h3>Input JSON</h3>
+  <textarea id="input"></textarea>
+
+  <h3>Output JSON</h3>
+  <textarea id="output" readonly></textarea>
+
+  <div id="message"></div>
+</div>
+
+<script>
+  function slugify(text) {
+    return text
+      .toLowerCase()
+      .replace(/[’']/g, "")
+      .replace(/[^a-z0-9]+/g, "_")
+      .replace(/_+/g, "_")
+      .replace(/^_|_$/g, "");
+  }
+
+  function addIds() {
+    const inputEl = document.getElementById("input");
+    const outputEl = document.getElementById("output");
+    const messageEl = document.getElementById("message");
+    const prefix = document.getElementById("cityPrefix").value.trim().toLowerCase();
+
+    messageEl.textContent = "";
+    messageEl.className = "";
+
+    let data;
+    try {
+      data = JSON.parse(inputEl.value);
+    } catch (e) {
+      messageEl.textContent = "❌ Invalid JSON:\n" + e.message;
+      messageEl.className = "error";
+      return;
+    }
+
+    if (!Array.isArray(data)) {
+      messageEl.textContent = "❌ Top-level JSON must be an array.";
+      messageEl.className = "error";
+      return;
+    }
+
+    const seen = new Set();
+    let added = 0;
+
+    for (const sight of data) {
+      if (!sight.name) {
+        messageEl.textContent = "❌ Every sight must have a 'name' field.";
+        messageEl.className = "error";
+        return;
+      }
+
+      if (!sight.id) {
+        let base = slugify(sight.name);
+        let id = prefix ? `${prefix}_${base}` : base;
+
+        let candidate = id;
+        let counter = 2;
+        while (seen.has(candidate)) {
+          candidate = `${id}_${counter++}`;
+        }
+
+        sight.id = candidate;
+        added++;
+      }
+
+      if (seen.has(sight.id)) {
+        messageEl.textContent = `❌ Duplicate id detected: ${sight.id}`;
+        messageEl.className = "error";
+        return;
+      }
+
+      seen.add(sight.id);
+    }
+
+    outputEl.value = JSON.stringify(data, null, 2);
+    messageEl.textContent = `✅ Done. Added ${added} id${added === 1 ? "" : "s"}.`;
+    messageEl.className = "success";
+  }
+
+  function clearAll() {
+    document.getElementById("input").value = "";
+    document.getElementById("output").value = "";
+    document.getElementById("message").textContent = "";
+  }
+</script>
+
+</body>
+</html>
